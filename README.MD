@@ -81,7 +81,7 @@ src/main/resources/static/index.html
 
 ### 🧪 Sample Screenshot
 
-![Task Manager Screenshot](screenshot.png)
+![Task Manager](screenshot.png)
 
 ---
 
@@ -154,12 +154,16 @@ src/main/resources/static/index.html
 Pull requests are welcome! For major changes, please open an issue first to discuss.
 
 ---
+## 📄 License
 
-## 📜 License
+This project is open source. Please check the repository for license information.
 
-This project is licensed under the MIT License.
+## 🙏 Acknowledgments
 
----
+- Thanks to all contributors who have helped shape this project
+- Inspired by the open-source community
+- Built with ❤️ and modern development practices
+
 
 ## 👨‍💻 Author
 
