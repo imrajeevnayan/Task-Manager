@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>TaskManager 3000</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center py-10">
+
+<h1 class="text-3xl font-bold text-indigo-700 mb-6">📝 Task Manager</h1>
+
+<!-- Controls: Filter & Add Task -->
+<div class="flex flex-col md:flex-row items-center gap-4 mb-6 w-full max-w-2xl px-4">
+    <div class="flex items-center space-x-2">
+        <label for="filterSelect" class="font-medium">Filter:</label>
+        <select id="filterSelect" class="border rounded p-2">
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="completed">Completed</option>
+        </select>
+    </div>
+    <button id="openAddModalBtn" class="ml-auto bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700">
+        ➕ New Task
+    </button>
+</div>
+
+<!-- Task List Container -->
+<div class="bg-white p-6 rounded shadow-md w-full max-w-2xl mb-10">
+    <h2 class="text-xl font-semibold mb-4">Your Tasks</h2>
+    <ul id="taskList" class="space-y-4"></ul>
+</div>
+
+<!-- Modal Overlay for Add / Edit Task -->
+<div id="taskModal" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-md p-6 relative">
+        <h3 id="modalTitle" class="text-xl font-semibold mb-4">Add Task</h3>
+        <input id="modalTitleInput" class="w-full border p-2 mb-2 rounded" placeholder="Title" />
+        <textarea id="modalDescriptionInput" class="w-full border p-2 mb-2 rounded" placeholder="Description"></textarea>
+        <div class="flex items-center mb-4 space-x-4">
+            <label>Status:</label>
+            <select id="modalStatusInput" class="border rounded p-2">
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+            </select>
+        </div>
+        <div class="flex justify-end space-x-2">
+            <button id="modalCancelBtn" class="px-4 py-2 rounded border">Cancel</button>
+            <button id="modalSaveBtn" class="px-4 py-2 rounded bg-indigo-600 text-white hover:bg-indigo-700">Save</button>
+        </div>
+        <button id="modalCloseX" class="absolute top-3 right-3 text-gray-500 hover:text-gray-800">✖</button>
+    </div>
+</div>
+
+<script>
+    let tasks = [];
+    let editingTaskId = null;
+
+    const taskListEl = document.getElementById('taskList');
+    const filterSelectEl = document.getElementById('filterSelect');
+    const openAddModalBtn = document.getElementById('openAddModalBtn');
+    const taskModalEl = document.getElementById('taskModal');
+    const modalTitleEl = document.getElementById('modalTitle');
+    const modalTitleInput = document.getElementById('modalTitleInput');
+    const modalDescriptionInput = document.getElementById('modalDescriptionInput');
+    const modalStatusInput = document.getElementById('modalStatusInput');
+    const modalSaveBtn = document.getElementById('modalSaveBtn');
+    const modalCancelBtn = document.getElementById('modalCancelBtn');
+    const modalCloseX = document.getElementById('modalCloseX');
+
+    // Open modal for Add
+    openAddModalBtn.addEventListener('click', () => {
+      editingTaskId = null;
+      modalTitleEl.textContent = 'Add Task';
+      modalTitleInput.value = '';
+      modalDescriptionInput.value = '';
+      modalStatusInput.value = 'pending';
+      showModal();
+    });
+
+    modalCancelBtn.addEventListener('click', hideModal);
+    modalCloseX.addEventListener('click', hideModal);
+    // click outside the modal content to close
+    taskModalEl.addEventListener('click', (e) => {
+      if (e.target === taskModalEl) {
+        hideModal();
+      }
+    });
+
+    // Save (Add or Edit)
+    modalSaveBtn.addEventListener('click', () => {
+      const title = modalTitleInput.value.trim();
+      const description = modalDescriptionInput.value.trim();
+      const status = modalStatusInput.value;
+
+      if (!title) {
+        alert('Title is required');
+        return;
+      }
+
+      if (editingTaskId == null) {
+        // add new
+        fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, description, status })
+        })
+        .then(res => res.json())
+        .then(task => {
+          tasks.push(task);
+          renderTasks();
+          hideModal();
+        })
+        .catch(err => console.error('Add failed', err));
+      } else {
+        // update existing
+        fetch(`/api/tasks/${editingTaskId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, description, status })
+        })
+        .then(res => res.json())
+        .then(updated => {
+          const idx = tasks.findIndex(t => t.id === editingTaskId);
+          if (idx >= 0) {
+            tasks[idx] = updated;
+            renderTasks();
+            hideModal();
+          }
+        })
+        .catch(err => console.error('Edit failed', err));
+      }
+    });
+
+    filterSelectEl.addEventListener('change', renderTasks);
+
+    function fetchTasks() {
+      fetch('/api/tasks')
+        .then(res => res.json())
+        .then(data => {
+          tasks = data;
+          renderTasks();
+        })
+        .catch(err => console.error('Fetch failed', err));
+    }
+
+    function renderTasks() {
+      const filter = filterSelectEl.value;
+      taskListEl.innerHTML = '';
+      const filtered = tasks.filter(t => {
+        if (filter === 'all') return true;
+        return t.status === filter;
+      });
+      if (filtered.length === 0) {
+        taskListEl.innerHTML = '<li class="text-gray-500">No tasks to show</li>';
+        return;
+      }
+      filtered.forEach(task => {
+        const li = document.createElement('li');
+        li.className = 'flex justify-between items-center border p-4 rounded hover:bg-gray-50';
+        li.innerHTML = `
+          <div class="flex flex-col">
+            <div class="flex items-center space-x-2">
+              <h3 class="text-lg font-semibold text-gray-800 ${task.status === 'completed' ? 'line-through text-gray-400' : ''}">${task.title}</h3>
+              <span class="px-2 py-1 text-xs font-medium rounded-full ${task.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">
+                ${task.status}
+              </span>
+            </div>
+            <p class="text-gray-600">${task.description}</p>
+          </div>
+          <div class="flex space-x-2">
+            <button onclick="markCompleted(${task.id})" class="px-2 py-1 rounded text-white ${task.status === 'completed' ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-500 hover:bg-green600'}">
+              ✔
+            </button>
+            <button onclick="editTask(${task.id})" class="px-2 py-1 rounded bg-blue-500 hover:bg-blue-600 text-white">
+              ✏ Edit
+            </button>
+            <button onclick="deleteTask(${task.id})" class="px-2 py-1 rounded bg-red-500 hover:bg-red-600 text-white">
+              🗑 Delete
+            </button>
+          </div>
+        `;
+        taskListEl.appendChild(li);
+      });
+    }
+
+    function showModal() {
+      taskModalEl.classList.remove('hidden');
+      taskModalEl.classList.add('flex');
+    }
+
+    function hideModal() {
+      taskModalEl.classList.remove('flex');
+      taskModalEl.classList.add('hidden');
+    }
+
+    function editTask(id) {
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+      editingTaskId = id;
+      modalTitleEl.textContent = 'Edit Task';
+      modalTitleInput.value = task.title;
+      modalDescriptionInput.value = task.description;
+      modalStatusInput.value = task.status;
+      showModal();
+    }
+
+    function deleteTask(id) {
+      fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+        .then(() => {
+          tasks = tasks.filter(t => t.id !== id);
+          renderTasks();
+        })
+        .catch(err => console.error('Delete failed', err));
+    }
+
+    function markCompleted(id) {
+      const task = tasks.find(t => t.id === id);
+      if (!task || task.status === 'completed') return;
+      fetch(`/api/tasks/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...task, status: 'completed' })
+      })
+        .then(res => res.json())
+        .then(updated => {
+          const idx = tasks.findIndex(t => t.id === id);
+          if (idx >= 0) {
+            tasks[idx] = updated;
+            renderTasks();
+          }
+        })
+        .catch(err => console.error('Mark complete failed', err));
+    }
+
+    // initial load
+    fetchTasks();
+</script>
+
+</body>
+</html>
