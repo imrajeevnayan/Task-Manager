@@ -163,7 +163,7 @@ This project is licensed under the MIT License.
 
 ## 👨‍💻 Author
 
-**Rajeev Nayan** – [LinkedIn](https://linkedin.com/in/imrajeevnayan) | [GitHub](https://github.com/your-username)
+**Rajeev Nayan** – [LinkedIn](https://linkedin.com/in/imrajeevnayan) | [GitHub](https://github.com/imrajeevnayan)
 
 ---
 
